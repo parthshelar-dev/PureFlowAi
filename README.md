@@ -10,7 +10,7 @@ Rather than three disconnected tools, PureFlowAi runs three specialist AI agents
 
 ---
 
-## Demo
+## Demo Video
 
 [![Watch the PureFlowAi demo](./images/PureFlow%20Ai%20Workflow.png)](https://www.loom.com/share/38722e8498d941148d026e937deeed72)
 
