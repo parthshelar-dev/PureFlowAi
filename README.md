@@ -132,7 +132,7 @@ PureFlowAi directly supports **SDG 6 (Clean Water & Sanitation)** by reducing wa
 - **Atharva Gangurde**
 - **Khushi Chandak**
 
-This project was designed, built, and tested collaboratively as a team — from workflow architecture to agent logic to documentation.
+We designed and built PureFlowAi together, working through the architecture, agent reasoning, and documentation as a team.
 
 *IBM Project-Based Internship*
 
