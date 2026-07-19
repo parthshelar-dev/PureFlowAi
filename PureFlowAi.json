@@ -1,0 +1,1522 @@
+{
+  "name": "PureFlow AI",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -608,
+        320
+      ],
+      "id": "d8607042-1b08-4d9b-89fc-688bbdbf792f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const threshold = 10; // % — anything above this is flagged as anomalous\n\nconst results = [];\nfor (const item of $input.all()) {\n  const d = item.json;\n  const nrwPct = ((d.inflow_lpm - d.outflow_lpm) / d.inflow_lpm) * 100;\n\n  results.push({\n    json: {\n      ...d,\n      nrw_pct: parseFloat(nrwPct.toFixed(2)),\n      is_anomaly: nrwPct > threshold\n    }\n  });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "28dd51ef-79f4-400a-afc9-0064033cd1e5",
+      "name": "Calculate NRW"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        432,
+        96
+      ],
+      "id": "1379785d-28fe-4502-8072-ee4a47f2e1ae",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "J4K5dcjbnO8eQrQc",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Log a water leak incident with its severity, location, timestamp, likely cause, and recommended action into the database.",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1077560713,
+          "mode": "list",
+          "cachedResultName": "Leak_Incidents ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=1077560713"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "severity": "={{ $fromAI('severity', 'Low, Medium, or High', 'string') }}",
+            "zone_id": "={{ $json.zone_id }}",
+            "nrw_pct": "={{ $json.nrw_pct }}",
+            "recommended_action": "={{ $fromAI('recommended_action', 'specific field action to take', 'string') }}",
+            "likely_cause": "={{ $fromAI('likely_cause', 'leak, faulty meter, or theft', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "zone_id",
+              "displayName": "zone_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nrw_pct",
+              "displayName": "nrw_pct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "likely_cause",
+              "displayName": "likely_cause",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "recommended_action",
+              "displayName": "recommended_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        128
+      ],
+      "id": "24896ea4-e6c7-4ff7-a684-60bde2ef16fd",
+      "name": "Log Water Leak Incident",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const zones = ['Zone_A', 'Zone_B', 'Zone_C', 'Zone_D'];\nconst output = [];\n\nfor (const zone of zones) {\n  const isContaminated = Math.random() < 0.5;\n\n  const ph = isContaminated\n    ? (Math.random() < 0.5 ? 5.0 + Math.random() * 0.8 : 9.0 + Math.random() * 0.8) // out of safe range\n    : 6.8 + Math.random() * 1.2; // normal safe range ~6.8-8.0\n\n  const turbidity = isContaminated\n    ? 8 + Math.random() * 12 // NTU, elevated/unsafe\n    : 0.5 + Math.random() * 3; // normal, clear water\n\n  const chlorine = isContaminated\n    ? Math.random() * 0.15 // too low, recontamination risk\n    : 0.3 + Math.random() * 0.7; // normal residual disinfectant\n\n  const temperature = 18 + Math.random() * 10; // celsius, ambient variation\n\n  output.push({\n    json: {\n      timestamp: new Date().toISOString(),\n      zone_id: zone,\n      ph: parseFloat(ph.toFixed(2)),\n      turbidity_ntu: parseFloat(turbidity.toFixed(2)),\n      chlorine_mgl: parseFloat(chlorine.toFixed(2)),\n      temperature_c: parseFloat(temperature.toFixed(2)),\n      is_simulated_contamination: isContaminated\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        320
+      ],
+      "id": "a29d7b0b-ee5a-4c64-95bb-37b8ad201d6d",
+      "name": "Generate Quality Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const d = item.json;\n  const issues = [];\n\n  if (d.ph < 6.5 || d.ph > 8.5) issues.push(`pH out of safe range (${d.ph})`);\n  if (d.turbidity_ntu > 5) issues.push(`turbidity too high (${d.turbidity_ntu} NTU)`);\n  if (d.chlorine_mgl < 0.2) issues.push(`chlorine residual too low (${d.chlorine_mgl} mg/L)`);\n\n  results.push({\n    json: {\n      ...d,\n      is_anomaly: issues.length > 0,\n      issues: issues.join('; ') || 'none'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        432
+      ],
+      "id": "d334d6fe-6b58-4ebc-aaf8-f67298abecea",
+      "name": "Check Water Quality"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        432,
+        512
+      ],
+      "id": "3b2bb7c0-def6-4b39-a58e-2d09829f7d3b",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "J4K5dcjbnO8eQrQc",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentYear = 2026;\nconst today = new Date('2026-07-16'); // matches your current project date\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const d = item.json;\n\n  const age = currentYear - parseInt(d.install_year);\n  const lastMaint = new Date(d.last_maintenance_date);\n  const daysSinceMaintenance = Math.floor((today - lastMaint) / (1000 * 60 * 60 * 24));\n  const runtimeHours = parseFloat(d.total_runtime_hours);\n  const failures = parseInt(d.failure_count);\n\n  // Simple weighted risk score — not real engineering formula, but defensible for a demo:\n  // age matters, time overdue matters more, runtime wear matters, past failures compound risk\n  let riskScore = 0;\n  riskScore += age * 2;                          // older = riskier\n  riskScore += Math.max(0, daysSinceMaintenance - 180) * 0.3; // penalty grows after 6 months overdue\n  riskScore += (runtimeHours / 1000) * 1.5;       // wear from usage\n  riskScore += failures * 8;                      // past failures strongly predictive of future ones\n\n  const isAtRisk = riskScore > 70; // threshold — tune this after seeing real distribution\n\n  results.push({\n    json: {\n      ...d,\n      age_years: age,\n      days_since_maintenance: daysSinceMaintenance,\n      risk_score: parseFloat(riskScore.toFixed(1)),\n      is_at_risk: isAtRisk\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        736
+      ],
+      "id": "250fc78a-1d23-4a87-b16c-c2c44ccbba3d",
+      "name": "Calculate Maintenance Risk"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        432,
+        928
+      ],
+      "id": "ce3efe1f-43e0-4a9d-96b7-ace7c2fca244",
+      "name": "Groq Chat Model2",
+      "credentials": {
+        "groqApi": {
+          "id": "J4K5dcjbnO8eQrQc",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1408,
+        304
+      ],
+      "id": "8c167f3f-3192-4a23-91cf-eb55c27266d6",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        512
+      ],
+      "id": "a269b1a8-f7c9-4621-9c49-9fe862296132",
+      "name": "Groq Chat Model3",
+      "credentials": {
+        "groqApi": {
+          "id": "J4K5dcjbnO8eQrQc",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const incidents = $input.all().map(item => item.json);\nreturn [{ json: { incidents: incidents } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        320
+      ],
+      "id": "7e33f32a-c4ce-4c7a-9bcf-30350d51f084",
+      "name": "Combine Incidents"
+    },
+    {
+      "parameters": {
+        "jsCode": "const zones = ['Zone_A', 'Zone_B', 'Zone_C', 'Zone_D'];\nconst output = [];\n\nfor (const zone of zones) {\n  const baseInflow = 100 + Math.random() * 20;\n  const isLeak = Math.random() < 0.5;\n\n  let lossPct = 0.02 + Math.random() * 0.02;\n  if (isLeak) {\n    lossPct = 0.15 + Math.random() * 0.25;\n  }\n\n  const outflow = baseInflow * (1 - lossPct);\n  const pressure = isLeak\n    ? 2.0 + Math.random() * 0.5\n    : 3.5 + Math.random() * 0.5;\n\n  output.push({\n    json: {\n      timestamp: new Date().toISOString(),\n      zone_id: zone,\n      inflow_lpm: parseFloat(baseInflow.toFixed(2)),\n      outflow_lpm: parseFloat(outflow.toFixed(2)),\n      pressure_bar: parseFloat(pressure.toFixed(2)),\n      is_simulated_leak: isLeak\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        -112
+      ],
+      "id": "393db6c9-7db2-4c5e-a264-cff2f21e4192",
+      "name": "Generate Flow Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "48cabc1b-18ea-4651-aa2b-d4e3100fd65d",
+              "leftValue": "={{ $json.is_anomaly }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        0
+      ],
+      "id": "383846d4-6658-40e9-b104-258e6f201aac",
+      "name": "Filter Leak Anomalies"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=A zone has been flagged for abnormal water loss. Data:\nZone: {{ $json.zone_id }}\nInflow: {{ $json.inflow_lpm }} LPM\nOutflow: {{ $json.outflow_lpm }} LPM\nPressure: {{ $json.pressure_bar }} bar\nNRW%: {{ $json.nrw_pct }}\n\nAnalyze this and log the incident.",
+        "options": {
+          "systemMessage": "You are PureFlowAi's Leak Detection Agent for a municipal water utility.\n\nYou receive sensor data for a pipe zone showing signs of abnormal water loss (Non-Revenue Water). Your job:\n\n1. Assess likely cause: a genuine pipe leak, a faulty meter (unlikely if pressure also dropped), or possible theft/illegal tapping.\n2. Assign severity: \"Low\" (10-20% loss), \"Medium\" (20-35% loss), \"High\" (35%+ loss or pressure below 2.5 bar).\n3. Recommend a specific action a field team should take.\n\nAlways log the incident using the available tool before responding. Be concise and decisive — you are supporting real operational decisions, not writing a report.\n\nWhen calling the log_water_leak_incident tool, provide ONLY these exact parameters: severity, likely_cause, recommended_action. Do not include any other fields such as timestamp or location — those are handled automatically by the system."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        -112
+      ],
+      "id": "50e88cfc-7f83-4922-99dd-a2091c4698ae",
+      "name": "Leak Detection Agent"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sensor_Log ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "zone_id": "={{ $json.zone_id }}",
+            "inflow_lpm": "={{ $json.inflow_lpm }}",
+            "outflow_lpm": "={{ $json.outflow_lpm }}",
+            "pressure_bar": "={{ $json.pressure_bar }}",
+            "is_simulated_leak": "={{ $json.is_simulated_leak }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "zone_id",
+              "displayName": "zone_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inflow_lpm",
+              "displayName": "inflow_lpm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "outflow_lpm",
+              "displayName": "outflow_lpm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pressure_bar",
+              "displayName": "pressure_bar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_simulated_leak",
+              "displayName": "is_simulated_leak",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -48,
+        -240
+      ],
+      "id": "d513631f-23da-4a22-8dab-8adb5c8dda0e",
+      "name": "Log Raw Flow Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1508728092,
+          "mode": "list",
+          "cachedResultName": "Quality_Log ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=1508728092"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "zone_id": "={{ $json.zone_id }}",
+            "ph": "={{ $json.ph }}",
+            "turbidity_ntu": "={{ $json.turbidity_ntu }}",
+            "chlorine_mgl": "={{ $json.chlorine_mgl }}",
+            "temperature_c": "={{ $json.temperature_c }}",
+            "is_simulated_contamination": "={{ $json.is_simulated_contamination }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "zone_id",
+              "displayName": "zone_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ph",
+              "displayName": "ph",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "turbidity_ntu",
+              "displayName": "turbidity_ntu",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chlorine_mgl",
+              "displayName": "chlorine_mgl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "temperature_c",
+              "displayName": "temperature_c",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_simulated_contamination",
+              "displayName": "is_simulated_contamination",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -48,
+        192
+      ],
+      "id": "a9ac5aa9-4f32-4ae8-be75-9cab1697e8ed",
+      "name": "Log Raw Quality Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6dcb8f80-882f-4a5a-8b8d-45767caf1fb1",
+              "leftValue": "={{ $json.is_anomaly }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        432
+      ],
+      "id": "dc2d8d19-8d82-4826-8c69-174b0930eb16",
+      "name": "Filter Quality Anomalies"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=A zone has failed a water quality check. Data:\nZone: {{ $json.zone_id }}\npH: {{ $json.ph }}\nTurbidity: {{ $json.turbidity_ntu }} NTU\nChlorine: {{ $json.chlorine_mgl }} mg/L\nTemperature: {{ $json.temperature_c }}°C\nIssues detected: {{ $json.issues }}\n\nAnalyze this and log the incident.",
+        "options": {
+          "systemMessage": "You are PureFlowAi's Water Quality Agent for a municipal water utility.\n\nYou receive readings for a zone that has failed one or more safety checks: pH (safe range 6.5-8.5), turbidity (safe below 5 NTU), or chlorine residual (safe above 0.2 mg/L).\n\nYour job:\n1. Identify which specific parameter(s) are abnormal and what that combination likely means:\n   - Low chlorine alone → possible disinfection/dosing failure, recontamination risk.\n   - High turbidity alone → sediment disturbance, possible pipe damage or backflow.\n   - pH swing alone → chemical dosing error at treatment plant.\n   - Multiple parameters off together → more likely a genuine contamination event, treat as urgent.\n2. Assign severity: \"Low\" (one parameter mildly off), \"Medium\" (one parameter significantly off, or two mildly off), \"High\" (any parameter far outside range, or multiple parameters off together — this is a public health risk).\n3. Recommend a specific action: which team to alert (field crew vs. treatment plant operators vs. public health), and whether a \"do not consume\" advisory should be considered for High severity.\n\nAlways log the incident using the available tool before responding. Be concise and decisive — this supports real public health decisions.\n\nWhen calling the tool, provide ONLY these exact parameters: severity, likely_cause, recommended_action.\n\nCall the logging tool exactly once per incident."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        320
+      ],
+      "id": "f904b5d5-5080-482a-93c3-ace0f22b042c",
+      "name": "Water Quality Agent"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1580222598,
+          "mode": "list",
+          "cachedResultName": "Quality_Incidents ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=1580222598"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "zone_id": "={{ $json.zone_id }}",
+            "issues": "={{ $json.issues }}",
+            "severity": "={{ $fromAI('severity', 'Low, Medium, or High', 'string') }}",
+            "likely_cause": "={{ $fromAI('likely_cause', 'disinfection failure, sediment disturbance, chemical dosing error, or contamination event', 'string') }}",
+            "recommended_action": "={{ $fromAI('recommended_action', 'specific team to alert and whether a do-not-consume advisory is needed', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "zone_id",
+              "displayName": "zone_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "issues",
+              "displayName": "issues",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "likely_cause",
+              "displayName": "likely_cause",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommended_action",
+              "displayName": "recommended_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        544
+      ],
+      "id": "1977f142-c1e6-4d8f-9af5-7d1fe59f8eaf",
+      "name": "Log Quality Incident",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2107452074,
+          "mode": "list",
+          "cachedResultName": "Equipment_Registry ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=2107452074"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -320,
+        736
+      ],
+      "id": "12167ac7-e0da-4dfd-a5ed-a5cb0aa03cff",
+      "name": "Get Equipment Registry",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3d44ebeb-c834-4192-80b6-7ad44bb8aa77",
+              "leftValue": "={{ $json.is_at_risk }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        736
+      ],
+      "id": "08afb939-003b-453b-9b6c-f468d1cd11e7",
+      "name": "Filter At-Risk Equipment"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Equipment flagged as at-risk. Data:\nEquipment ID: {{ $json.equipment_id }}\nType: {{ $json.type }}\nZone: {{ $json.zone_id }}\nAge: {{ $json.age_years }} years\nDays since last maintenance: {{ $json.days_since_maintenance }}\nTotal runtime hours: {{ $json.total_runtime_hours }}\nPrior failure count: {{ $json.failure_count }}\nRisk score: {{ $json.risk_score }}\n\nAnalyze this and log the incident.",
+        "options": {
+          "systemMessage": "You are PureFlowAi's Predictive Maintenance Agent for a municipal water utility.\n\nYou receive data on equipment (pumps/valves) flagged as at-risk based on a computed risk score combining age, days since last maintenance, total runtime hours, and prior failure count.\n\nYour job:\n1. Predict the most likely issue: mechanical wear/seal failure (common in old pumps with high runtime), corrosion/blockage (common in old valves overdue for maintenance), or repeat failure pattern (if failure_count is high, the same underlying issue likely recurs).\n2. Assign priority: \"Schedule Soon\" (risk score 70-150, plan within weeks), \"Urgent\" (150-250, schedule within days), \"Critical\" (250+, immediate inspection needed, consider taking equipment offline preemptively).\n3. Recommend a specific action: what a maintenance team should inspect/replace, and whether it justifies an unplanned shutdown vs. can wait for scheduled maintenance.\n\nAlways log the incident using the available tool before responding. Consider that unplanned failure costs (emergency repair, service interruption) are typically far higher than proactive maintenance costs — weigh this in your priority.\n\nCall the tool exactly once per equipment item, providing ONLY predicted_issue, priority, and recommended_action."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        720
+      ],
+      "id": "eac93595-330a-4eeb-90d7-ab6e4c6324d8",
+      "name": "Maintenance Agent"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 620295348,
+          "mode": "list",
+          "cachedResultName": "Maintenance_Incidents",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=620295348"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "equipment_id": "={{ $json.equipment_id }}",
+            "type": "={{ $json.type }}",
+            "zone_id": "={{ $json.zone_id }}",
+            "risk_score": "={{ $json.risk_score }}",
+            "timestamp": "={{ $now }}",
+            "predicted_issue": "={{ $fromAI('predicted_issue', 'mechanical wear, corrosion/blockage, or repeat failure pattern', 'string') }}",
+            "priority": "={{ $fromAI('priority', 'Schedule Soon, Urgent, or Critical', 'string') }}",
+            "recommended_action": "={{ $fromAI('recommended_action', 'specific inspection/replacement action and whether shutdown is justified', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "equipment_id",
+              "displayName": "equipment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "zone_id",
+              "displayName": "zone_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_score",
+              "displayName": "risk_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "predicted_issue",
+              "displayName": "predicted_issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "recommended_action",
+              "displayName": "recommended_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        960
+      ],
+      "id": "0a9c5a2b-a67a-493d-9171-afa81957d8e2",
+      "name": "Log Maintenance Incident",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        320
+      ],
+      "id": "2bdfb6c9-74a6-4c5f-bb9b-f7ad9336f943",
+      "name": "Orchestrator Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1077560713,
+          "mode": "list",
+          "cachedResultName": "Leak_Incidents ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=1077560713"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        144
+      ],
+      "id": "3345906e-b86e-4612-999b-cc070831a2ec",
+      "name": "Get Leak Incidents",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1580222598,
+          "mode": "list",
+          "cachedResultName": "Quality_Incidents ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=1580222598"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        320
+      ],
+      "id": "1ff7d3ee-2e08-49d0-8a0c-e5bb6ed1de72",
+      "name": "Get Quality Incidents",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU",
+          "mode": "list",
+          "cachedResultName": "PureFlowAi_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 620295348,
+          "mode": "list",
+          "cachedResultName": "Maintenance_Incidents",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P1I_brIsrvu1a6yjtmtNGpao72ewpwiy7MnOPI6VGkU/edit#gid=620295348"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        496
+      ],
+      "id": "92f14cfe-ea55-4188-9ef9-89691636750d",
+      "name": "Get Maintenance Incidents",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XqdIqsnEKFGhjvga",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ef279aa8-5e62-4e75-9c00-c7d946ce134e",
+              "leftValue": "={{ $json.timestamp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ae0460fb-0a49-4d7b-988f-c4a00f3d5aa5",
+              "leftValue": "={{ $json.recommended_action }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1616,
+        320
+      ],
+      "id": "77a38402-1b73-4d9d-ba4c-385908d6b403",
+      "name": "Remove Blank Rows"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here are today's open incidents across all domains:\n\n{{ JSON.stringify($json.incidents) }}\n\nProduce the prioritized briefing.",
+        "options": {
+          "systemMessage": "Format your entire response as clean HTML (no markdown, no ** symbols). Structure it exactly like this:\n\n<h2>PureFlowAi Operations Briefing</h2>\n\n<h3 style=\"color:#c0392b;\">🔴 Critical / High Priority</h3>\n<ul>\n<li><b>[Zone/Equipment]</b>: [what happened] — [why it matters] — <b>Action:</b> [what to do first]</li>\n</ul>\n\n<h3 style=\"color:#e67e22;\">🟡 Medium / Low Priority (routine)</h3>\n<ul>\n<li><b>[Zone/Equipment]</b>: [what happened] — <b>Action:</b> [what to do]</li>\n</ul>\n\n<h3>System Health Summary</h3>\n<p>[one paragraph overall summary]</p>\n\nGroup every incident into the correct section by its own severity/priority label. Use only these HTML tags: h2, h3, ul, li, b, p. Do not use markdown syntax anywhere."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2016,
+        320
+      ],
+      "id": "a396ab74-2e22-4a32-b249-0b1e96169c5e",
+      "name": "Orchestrator Agent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "303ac7fb-dbd2-49dc-8c3f-33bfccf47249",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "16eb725e-812b-44c7-8c90-c0c5c813a86e",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2320,
+        320
+      ],
+      "id": "c3c3068d-8f31-48ec-9694-ae1b4b3b3d64",
+      "name": "Filter Critical/High"
+    },
+    {
+      "parameters": {
+        "sendTo": "parthshelar121005@gmail.com",
+        "subject": "=PureFlowAi Alert — {{ $now.format('yyyy-MM-dd HH:mm') }}",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2560,
+        208
+      ],
+      "id": "c5bf7d0e-2429-438c-b5e1-0aee527a4a7e",
+      "name": "Send Alert Email",
+      "webhookId": "fb59c5ac-2c5a-4570-8866-69960c92b832",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "cjCUfCiks7nn6nTI",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Flow Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Quality Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Equipment Registry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate NRW": {
+      "main": [
+        [
+          {
+            "node": "Filter Leak Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Leak Detection Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Water Leak Incident": {
+      "ai_tool": [
+        [
+          {
+            "node": "Leak Detection Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Quality Data": {
+      "main": [
+        [
+          {
+            "node": "Log Raw Quality Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Water Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Water Quality": {
+      "main": [
+        [
+          {
+            "node": "Filter Quality Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Water Quality Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Maintenance Risk": {
+      "main": [
+        [
+          {
+            "node": "Filter At-Risk Equipment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Maintenance Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Remove Blank Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Incidents": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Flow Data": {
+      "main": [
+        [
+          {
+            "node": "Log Raw Flow Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Calculate NRW",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Leak Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Leak Detection Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Quality Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Water Quality Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Quality Incident": {
+      "ai_tool": [
+        [
+          {
+            "node": "Water Quality Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Equipment Registry": {
+      "main": [
+        [
+          {
+            "node": "Calculate Maintenance Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter At-Risk Equipment": {
+      "main": [
+        [
+          {
+            "node": "Maintenance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Maintenance Incident": {
+      "ai_tool": [
+        [
+          {
+            "node": "Maintenance Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Leak Incidents",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Quality Incidents",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Maintenance Incidents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Leak Incidents": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Quality Incidents": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Maintenance Incidents": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Remove Blank Rows": {
+      "main": [
+        [
+          {
+            "node": "Combine Incidents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical/High",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical/High": {
+      "main": [
+        [
+          {
+            "node": "Send Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3cc50116-58d3-419a-a879-ac2fbba1b533",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3fc1cdce344382e6d6e19e728d4e47f5680fc651cd7c8f65e741902456be5b2d"
+  },
+  "nodeGroups": [],
+  "id": "T9OyrhzTYBO5NmeG",
+  "tags": []
+}
